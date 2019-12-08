@@ -1,65 +1,59 @@
 package ru.mirzoyan.toussaint.controller;
 
+import com.fasterxml.jackson.annotation.JsonView;
+import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
-import ru.mirzoyan.toussaint.exceptions.NotFoundException;
+import ru.mirzoyan.toussaint.domain.Message;
+import ru.mirzoyan.toussaint.domain.Views;
+import ru.mirzoyan.toussaint.repo.MessageRepo;
 
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicLong;
 
 @RestController
 @RequestMapping("message")
 public class MainController {
 
-    private AtomicLong counter = new AtomicLong(4);
-    private List<Map<String, String>> messages= new ArrayList<Map<String, String>>() {{
-        add(new HashMap<String, String>(){{ put("id", "1"); put("text", "first message");}});
-        add(new HashMap<String, String>(){{ put("id", "2"); put("text", "second message");}});
-        add(new HashMap<String, String>(){{ put("id", "3"); put("text", "third message"); put("del me", "WTF");}});
-    }};
+    private final MessageRepo messagesRepo;
+
+    @Autowired
+    public MainController(MessageRepo messagesRepo) {
+        this.messagesRepo = messagesRepo;
+    }
 
     @GetMapping
-    public List<Map<String, String>> list(){
-        return messages;
+    @JsonView(Views.IdName.class)
+    public List<Message> list(){
+        return messagesRepo.findAll();
     }
 
     @GetMapping("{id}")
-    public Map<String, String> getMessageById(
-            @PathVariable("id") String idMessage
+    @JsonView(Views.IdName.class)
+    public Message getMessageById(
+            @PathVariable("id") Message message
     ){
-        return getMessage(idMessage);
-    }
-
-    private Map<String, String> getMessage(String idMessage) {
-        return messages.stream()
-                .filter(message->idMessage.equals(message.get("id")))
-                .findFirst()
-                .orElseThrow(NotFoundException::new);
-    }
-
-    @PostMapping
-    public Map<String, String> addMessage(@RequestBody Map<String, String> message){
-        message.put("id", String.valueOf(counter.getAndAdd(1)));
-        messages.add(message);
         return message;
     }
 
+    @PostMapping
+    public Message addMessage(@RequestBody Message message){
+        message.setCreationDate(LocalDateTime.now());
+        return messagesRepo.save(message);
+    }
+
     @PutMapping("{id}")
-    public Map<String, String> updateMessage(
-            @PathVariable String id,
-            @RequestBody Map<String, String> message){
-        Map<String, String> messageFromDb = getMessage(id);
-        messageFromDb.putAll(message);
-        messageFromDb.put("id",id);
-        return messageFromDb;
+    public Message updateMessage(
+            @PathVariable("id") Message messageFromDb,
+            @RequestBody Message message
+    ){
+        BeanUtils.copyProperties(message,messageFromDb,"id");
+        return messagesRepo.save(messageFromDb);
     }
 
     @DeleteMapping("{id}")
-    public void deleteMessage(@PathVariable String id){
-        Map<String, String> message = getMessage(id);
-        messages.remove(message);
+    public void deleteMessage(@PathVariable Long id){
+        messagesRepo.deleteById(id);
     }
 
 }
