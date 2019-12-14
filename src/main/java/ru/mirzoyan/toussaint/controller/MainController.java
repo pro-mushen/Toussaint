@@ -1,59 +1,42 @@
 package ru.mirzoyan.toussaint.controller;
 
-import com.fasterxml.jackson.annotation.JsonView;
-import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.*;
-import ru.mirzoyan.toussaint.domain.Message;
-import ru.mirzoyan.toussaint.domain.Views;
+import org.springframework.context.ApplicationContext;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import ru.mirzoyan.toussaint.domain.User;
 import ru.mirzoyan.toussaint.repo.MessageRepo;
 
-import java.time.LocalDateTime;
-import java.util.List;
+import java.util.Arrays;
+import java.util.HashMap;
 
-@RestController
-@RequestMapping("message")
+
+@Controller
+@RequestMapping("/")
 public class MainController {
 
-    private final MessageRepo messagesRepo;
-
     @Autowired
-    public MainController(MessageRepo messagesRepo) {
-        this.messagesRepo = messagesRepo;
-    }
+    private MessageRepo messageRepo;
+    @Autowired
+    ApplicationContext applicationContext;
 
-    @GetMapping
-    @JsonView(Views.IdName.class)
-    public List<Message> list(){
-        return messagesRepo.findAll();
-    }
 
-    @GetMapping("{id}")
-    @JsonView(Views.IdName.class)
-    public Message getMessageById(
-            @PathVariable("id") Message message
+    @GetMapping("/")
+    public String main(
+            Model model,
+            @AuthenticationPrincipal User user
+
     ){
-        return message;
-    }
+        HashMap<Object,Object> data = new HashMap<>();
+        data.put("profile", user);
+        data.put("messages", messageRepo.findAll());
 
-    @PostMapping
-    public Message addMessage(@RequestBody Message message){
-        message.setCreationDate(LocalDateTime.now());
-        return messagesRepo.save(message);
-    }
-
-    @PutMapping("{id}")
-    public Message updateMessage(
-            @PathVariable("id") Message messageFromDb,
-            @RequestBody Message message
-    ){
-        BeanUtils.copyProperties(message,messageFromDb,"id");
-        return messagesRepo.save(messageFromDb);
-    }
-
-    @DeleteMapping("{id}")
-    public void deleteMessage(@PathVariable Long id){
-        messagesRepo.deleteById(id);
+        model.addAttribute("frontendData", data);
+       /* Arrays.asList(applicationContext.getBeanDefinitionNames()).stream().forEach(b-> System.out.println(b));*/
+        return "index";
     }
 
 }
